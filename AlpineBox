@@ -1,0 +1,409 @@
+#!/bin/bash
+#
+# ┌─────────────────────────────────────────┐
+# │                AlpineBox                │
+# └─────────────────────────────────────────┘
+#
+# AlpineBox is a simple shell-based tool that allows
+# you to create and manage Alpine Linux rootfs containers
+# easily using PRoot.
+#
+# Features:
+# - Fast setup of Alpine Linux environments
+# - No root required (uses proot)
+# - Supports commands execution inside containers
+#
+# Use cases:
+# - Lightweight Linux containers for testing
+# - Portable development environments
+# - Secure sandboxing on restricted systems
+#
+# Author: Mauricio Ferrari
+# License: MIT
+
+
+function _msg_err_no_rootfs
+{
+    test -d "$ALPINEBOX_ROOTFS" && return 0
+    echo -e "\033[1A
+==================================================
+
+  Error: rootfs directory not found.
+
+  Expected location:
+    $ALPINEBOX_ROOTFS
+
+  Please run the following command to set it up:
+
+ ┌──────────────────────────────────────────────┐
+ │                                              │
+ └──────────────────────────────────────────────┘
+
+==================================================
+\033[4A │ $ ${0##*/} setup \033[3B"
+exit 1
+}
+
+
+function _check_deps
+{
+    printf "\033[1m"
+    for c in grep links mkdir proot tar rm uname wget
+    {
+        command -v "$c" || echo -e "$c -\033[31m not found\033[0;1m"
+    }
+    printf "\033[0m"
+    exit 0
+}
+
+
+function _check_version
+{
+    grep -Eo "([0-9]+[.])+[0-9]+" <(
+        grep -Eom1 "alpine-minirootfs-([0-9]+[.])+[0-9]+" <(
+            links -dump "$MIRROR"
+    ))
+}
+
+
+function _run
+{
+    _msg_err_no_rootfs
+
+    PROOT_OPTIONS="-R $ALPINEBOX_ROOTFS \
+        --bind=/dev \
+        --bind=/sys \
+        --bind=/tmp \
+        --bind=/proc \
+        --bind=$HOME \
+        --bind=/media \
+        --bind=/mnt \
+        --bind=/run \
+        --bind=/etc/resolv.conf \
+        --bind=/etc/hosts \
+        --bind=/etc/passwd \
+        --bind=/etc/group \
+        --bind=/etc/asound.conf \
+        --bind=/etc/localtime $PROOT_ARGS
+    "
+
+    COMM="${COMM:-${PROGRAM_ARGS[*]}}"
+
+    command proot ${USE_ROOT:+-0} $PROOT_OPTIONS /bin/sh ${COMM:+-c "$COMM"}
+}
+
+
+function _update
+{
+    _msg_err_no_rootfs
+
+    declare -x USE_ROOT=1
+    declare -x COMM="apk update && apk upgrade"
+    _run
+}
+
+
+function _setup
+{
+    (( ALPINEBOX_REINSTALL==1 )) || {
+        test -d "$ALPINEBOX_ROOTFS" && {
+            echo "Rootfs directory $ALPINEBOX_ROOTFS is already available. Use [-r|--reinstall] to reinstall it."
+            exit 0
+        }
+    }
+
+    VERSION="${VERSION:-"$(_check_version)"}"
+    echo "Latest version $VERSION"
+
+    TARBALL="alpine-minirootfs-$VERSION-$ARCH.tar.gz"
+
+    test -f "$ALPINEBOX_CACHE/$TARBALL" || {
+        rm -rf "$ALPINEBOX_CACHE"
+        mkdir -p "$ALPINEBOX_CACHE"
+        wget -c -P "$ALPINEBOX_CACHE" "$MIRROR/$TARBALL"
+    }
+    echo "$ALPINEBOX_CACHE/$TARBALL"
+
+    rm -rf "$ALPINEBOX_ROOTFS"
+    mkdir -p "$ALPINEBOX_ROOTFS"
+    tar -xzvf "$ALPINEBOX_CACHE/$TARBALL" -C "$ALPINEBOX_ROOTFS"
+
+    echo "http://dl-cdn.alpinelinux.org/alpine/edge/main
+http://dl-cdn.alpinelinux.org/alpine/edge/community
+http://dl-cdn.alpinelinux.org/alpine/edge/testing
+" > "$ALPINEBOX_ROOTFS/etc/apk/repositories"
+
+    declare -x USE_ROOT=1
+    _update
+
+echo -e "\033[1A
+========================================
+
+  Installation completed successfully!
+  To start the environment, run:
+
+ ┌────────────────────────────────────┐
+ │                                    │
+ └────────────────────────────────────┘
+
+========================================
+\033[4A │ $ ${0##*/} run \033[3B"
+}
+
+
+function _static_env
+{
+    _update
+
+    declare -x USE_ROOT=1
+    declare -x COMM='apk add alpine-sdk cmake clang'
+    _run
+}
+
+
+function _print_help
+{
+echo -e "\033[1A
+┌─────────────────────────────────────────────────────────┐
+│                  AlpineBox Version 1.0                  │
+└─────────────────────────────────────────────────────────┘
+
+AlpineBox is a simple shell-based tool that allows you to create and
+manage Alpine Linux rootfs containers easily using PRoot.
+
+Usage: ${0##*/} <parameters> [options] [--] [ARGS...]
+
+Available parameters:
+  setup                         Prepare the rootfs system (installation or reinstallation)
+  config or conf                Configure options before setup
+  run                           Execute a command inside the rootfs using proot
+  --check-deps                  Verify that all required dependencies are installed
+  --help                        Show this help message and exit
+  -v, --version                 Show the script version and exit
+
+Options for 'setup':
+  --cache=<DIR>                 Set the download cache directory
+  --cache <DIR>                 Equivalent to --cache=<DIR>
+  -r, --reinstall               Force reinstallation of the rootfs
+  -d, --directory-rootfs=<DIR>  Set the directory where the rootfs will be installed
+      --directory-rootfs <DIR>  Equivalent to --directory-rootfs=<DIR>
+
+Options for 'config':
+  -u, --update                  Update and upgrade all packages in the rootfs
+  -s, --static-env              Configure environment for static binaries
+  -d, --directory-rootfs=<DIR>  Set the rootfs directory to be used
+      --directory-rootfs <DIR>  Equivalent to --directory-rootfs=<DIR>
+
+Options for 'run':
+  -0, --root                    Enables root mode in proot (uses -0)
+  -b, --proot-args=<ARGS>       Passe additional arguments to proot
+      --proot-args <ARGS>       Equivalent to --proot-args=<ARGS>
+  -d, --directory-rootfs=<DIR>  Set the rootfs directory to be used
+      --directory-rootfs <DIR>  Equivalent to --directory-rootfs=<DIR>
+  -c, --command=<CMD>           Command to execute inside the environment (single string)
+      --command <CMD>           Equivalent to --command=<CMD>
+  --                            All arguments after this are passed directly
+                                to the command executed inside proot
+
+Environment variables:
+  ALPINEBOX_ROOTFS              Default rootfs directory if not passed with -d / --directory-rootfs
+                                Default to: \$HOME/.alpine-rootfs
+
+  ALPINEBOX_CACHE               Default cache directory for downloads if not passed with --cache
+                                Default to: \$HOME/.cache/alpine-rootfs
+
+Examples:
+  ${0##*/} setup --cache /tmp/cache -d ./rootfs
+  ${0##*/} run -b \"--bind=/etc/ntp.conf\" -d ./rootfs -c \"apk update\"
+  ${0##*/} run -d ./rootfs -- /bin/sh"
+exit 0
+}
+
+
+function _print_version
+{
+echo -e "\033[1A
+┌─────────────────────────────────────────────────────────┐
+│                  AlpineBox Version 1.0                  │
+└─────────────────────────────────────────────────────────┘
+
+AlpineBox is a simple shell-based tool that allows you to create and
+manage Alpine Linux rootfs containers easily using PRoot.
+
+License MIT: The MIT License <https://opensource.org/license/mit>"
+exit 0
+}
+
+set -e
+
+declare -x ARCH="${ARCH:-"$(uname -m)"}"
+declare -x MIRROR="https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/$ARCH"
+
+declare -x ALPINEBOX_ROOTFS="${ALPINEBOX_ROOTFS:-"$HOME"/.alpine-rootfs}"
+declare -x ALPINEBOX_CACHE="${ALPINEBOX_CACHE:-"$HOME"/.cache/alpine-rootfs}"
+
+declare -x CMD=""
+declare -x PROOT_ARGS=""
+declare -i ALPINEBOX_REINSTALL=0
+declare -a PROGRAM_ARGS=()
+
+for arg in "$@"; do
+    case "$arg" in
+        config|conf)
+            CMD="config"
+            shift
+            break
+            ;;
+        setup)
+            CMD="setup"
+            shift
+            break
+            ;;
+        run)
+            CMD="run"
+            shift
+            break
+            ;;
+        --check-deps)
+            _check_deps
+            ;;
+        --help)
+            _print_help
+            ;;
+        -v|--version)
+            _print_version
+            ;;
+        *)
+            echo "${0##*/}: invalid argument '$1'"
+            echo "Use '${0##*/} --help' to see available options."
+            exit 1
+            ;;
+    esac
+done
+
+test -z "$CMD" && CMD="run"
+
+test "$CMD" == "setup" && {
+    while [[ "$#" -gt 0 ]]; do
+        case "$1" in
+            --cache=*)
+                ALPINEBOX_CACHE="${1#*=}"
+                shift
+                ;;
+            --cache)
+                ALPINEBOX_CACHE="$2"
+                shift 2
+                ;;
+            -r|--reinstall)
+                ALPINEBOX_REINSTALL=1
+                shift
+                ;;
+            -d|--directory-rootfs=*)
+                ALPINEBOX_ROOTFS="${1#*=}"
+                shift
+                ;;
+            -d|--directory-rootfs)
+                ALPINEBOX_ROOTFS="$2"
+                shift 2
+                ;;
+            *)
+                echo "${0##*/}: setup: invalid argument '$1'"
+                echo "Use '${0##*/} --help' to see available options."
+                exit 1
+                ;;
+        esac
+    done
+
+    _setup
+    exit 0
+}
+
+
+test "$CMD" == "run" && {
+    while [[ "$#" -gt 0 ]]; do
+        case "$1" in
+             -0|--root)
+                declare -x USE_ROOT=1
+                shift
+                ;;
+            -b|--proot-args)
+                PROOT_ARGS="$2"
+                shift 2
+                ;;
+            --proot-args=*)
+                PROOT_ARGS="${1#*=}"
+                shift
+                ;;
+            -d|--directory-rootfs)
+                ALPINEBOX_ROOTFS="$2"
+                shift 2
+                ;;
+            --directory-rootfs=*)
+                ALPINEBOX_ROOTFS="${1#*=}"
+                shift
+                ;;
+            -c|--command)
+                PROGRAM_ARGS+=("$2")
+                shift 2
+                ;;
+            --command=*)
+                PROGRAM_ARGS+=("${1#*=}")
+                shift
+                ;;
+            --)
+                shift
+                break
+                ;;
+            -*)
+                echo "${0##*/}: run: invalid argument '$1'"
+                echo "Use '${0##*/} --help' to see available options."
+                exit 1
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
+
+    PROGRAM_ARGS+=("$@")
+    export PROGRAM_ARGS
+    _run
+    exit 0
+}
+
+
+test "$CMD" == "config" && {
+
+    test "$#" -eq 0 && {
+        echo "${0##*/}: config: No options provided for 'config'."
+        echo "Try '${0##*/} --help' for more information."
+        exit 1
+    }
+
+    while [[ "$#" -gt 0 ]]; do
+        case "$1" in
+            -u|--update)
+                _update
+                break
+                ;;
+            -s|--static-env)
+                _static_env
+                break
+                ;;
+            -d|--directory-rootfs=*)
+                ALPINEBOX_ROOTFS="${1#*=}"
+                shift
+                ;;
+            -d|--directory-rootfs)
+                ALPINEBOX_ROOTFS="$2"
+                shift 2
+                ;;
+            *)
+                echo "${0##*/}: config: invalid argument '$1'"
+                echo "Use '${0##*/} --help' to see available options."
+                exit 1
+                ;;
+        esac
+    done
+    exit 0
+}
