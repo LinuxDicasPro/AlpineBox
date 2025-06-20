@@ -91,23 +91,24 @@ $ AlpineBox <command> [options] [--] [ARGS...]
 
 ### Config
 
-| Option                           | Description                                             |
-| -------------------------------- | ------------------------------------------------------- |
-| `-u`, `--update`                 | Run `apk update && apk upgrade` inside rootfs           |
-| `-s`, `--static-env`             | Prepare a static environment (e.g. for musl-gcc builds) |
-| `-d`, `--directory-rootfs <DIR>` | Set the rootfs directory to operate on                  |
-| `      --directory-rootfs=<DIR>` | Set the rootfs directory to operate on                  |
+| Option                               | Description                                            |
+| ------------------------------------ | ------------------------------------------------------ |
+| `-u`, `--update`                     | Run `apk update && apk upgrade` inside rootfs          |
+| `-p`, `--prepare-dev`                | Install development tools (musl-dev, build-base, etc)  |
+| `-e`, `--extract-static <BIN> [OUT]` | Extract the specified static binary from rootfs        |
+| `      --extract-static <BIN> [OUT]` | Extract the specified static binary from rootfs        |
+| `-d`, `--directory-rootfs <DIR>`     | Set the rootfs directory to operate on                 |
+| `      --directory-rootfs=<DIR>`     | Set the rootfs directory to operate on                 |
 
 ### Run
 
-| Option                           | Description                                                                |
-| -------------------------------- | -------------------------------------------------------------------------- |
-| `-0`, `--root`                   | Enable fake root mode (`proot -0`)                                         |
-| `-b`, `--proot-args <ARGS>`      | Additional custom PRoot arguments                                          |
-| `-d`, `--directory-rootfs <DIR>` | Choose a rootfs directory to run in                                        |
-| `      --directory-rootfs=<DIR>` | Choose a rootfs directory to run in                                        |
-| `-c`, `--command <CMD>`          | Execute a specific command inside the rootfs                               |
-| `--`                             | All following args are passed directly to the command inside the container |
+| Option                           | Description                                                 |
+| -------------------------------- | ----------------------------------------------------------- |
+| `-0`, `--root`                   | Enable fake root mode (`proot -0`)                          |
+| `-b`, `--proot-args <ARGS>`      | Additional custom PRoot arguments                           |
+| `-d`, `--directory-rootfs <DIR>` | Choose a rootfs directory to run in                         |
+| `      --directory-rootfs=<DIR>` | Choose a rootfs directory to run in                         |
+| `-c`, `--command <CMD>`          | Execute a specific command inside the rootfs                |
 
 ---
 
@@ -117,6 +118,7 @@ $ AlpineBox <command> [options] [--] [ARGS...]
 | ------------------ | ------------------------------------------------------------------------------------------ |
 | `ALPINEBOX_ROOTFS` | Default rootfs directory if not provided via `-d`. Defaults to: `~/.alpine-rootfs`         |
 | `ALPINEBOX_CACHE`  | Default cache directory if not passed via `--cache`. Defaults to: `~/.cache/alpine-rootfs` |
+| `ALPINEBOX_CMD`    | Command to run inside the container (alternative to `-c`, `--command`)                     |
 
 ---
 
@@ -137,16 +139,21 @@ lightweight nature of AlpineBox:
 
 ```bash
 # Setup rootfs with custom cache and directory
-alpinebox setup --cache /tmp/cache -d ./rootfs
+alpinebox setup --cache ./cache -d ./rootfs
 
 # Run apk update inside the container using a bind mount
-alpinebox run -b "--bind=/etc/ntp.conf" -d ./rootfs -c "apk update"
+alpinebox run --root -d ./rootfs -c "apk update"
 
 # Enter an interactive shell in the rootfs
 alpinebox run -d ./rootfs -- /bin/sh
+
+# Extract static binary from rootfs to ./bin
+alpinebox config --extract-static proot -d ./rootfs
+
+# Install development tools into the container
+alpinebox config --prepare-dev -d ./rootfs
 ```
 
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
- 

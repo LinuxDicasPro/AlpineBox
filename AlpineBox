@@ -21,6 +21,7 @@
 # Author: Mauricio Ferrari
 # License: MIT
 
+VR="1.1"
 
 function _msg_err_no_rootfs
 {
@@ -87,9 +88,9 @@ function _run
         --bind=/etc/localtime $PROOT_ARGS
     "
 
-    COMM="${COMM:-${PROGRAM_ARGS[*]}}"
+    ALPINEBOX_CMD="${ALPINEBOX_CMD:-${PROGRAM_ARGS[*]}}"
 
-    command proot ${USE_ROOT:+-0} $PROOT_OPTIONS /bin/sh ${COMM:+-c "$COMM"}
+    command proot ${USE_ROOT:+-0} $PROOT_OPTIONS /bin/sh ${ALPINEBOX_CMD:+-c "$ALPINEBOX_CMD"}
 }
 
 
@@ -98,8 +99,19 @@ function _update
     _msg_err_no_rootfs
 
     declare -x USE_ROOT=1
-    declare -x COMM="apk update && apk upgrade"
+    declare -x ALPINEBOX_CMD="apk update && apk upgrade"
     _run
+}
+
+function _extract_static
+{
+    declare -x ALPINEBOX_CMD="
+        pkgs=\"\$(apk search $EXTRACT_BINARY.static | grep -Eo \".*-static\")\"
+        test -z \"\$pkgs\" || apk add \$pkgs && true
+    "
+    _run
+
+    find $ALPINEBOX_ROOTFS/usr/{,s}bin -name "$EXTRACT_BINARY.static" -exec cp {} ${EXTRACT_OUTPUT:-.} \;
 }
 
 
@@ -151,12 +163,12 @@ echo -e "\033[1A
 }
 
 
-function _static_env
+function _prepare_dev
 {
     _update
 
     declare -x USE_ROOT=1
-    declare -x COMM='apk add alpine-sdk cmake clang'
+    declare -x ALPINEBOX_CMD='apk add alpine-sdk cmake clang'
     _run
 }
 
@@ -165,7 +177,7 @@ function _print_help
 {
 echo -e "\033[1A
 ┌─────────────────────────────────────────────────────────┐
-│                  AlpineBox Version 1.0                  │
+│                  AlpineBox Version $VR                  │
 └─────────────────────────────────────────────────────────┘
 
 AlpineBox is a simple shell-based tool that allows you to create and
@@ -174,43 +186,47 @@ manage Alpine Linux rootfs containers easily using PRoot.
 Usage: ${0##*/} <parameters> [options] [--] [ARGS...]
 
 Available parameters:
-  setup                         Prepare the rootfs system (installation or reinstallation)
-  config or conf                Configure options before setup
-  run                           Execute a command inside the rootfs using proot
-  --check-deps                  Verify that all required dependencies are installed
-  --help                        Show this help message and exit
-  -v, --version                 Show the script version and exit
+  setup                             Prepare the rootfs system (installation or reinstallation)
+  config or conf                    Configure options before setup
+  run                               Execute a command inside the rootfs using proot
+  --check-deps                      Verify that all required dependencies are installed
+  --help                            Show this help message and exit
+  -v, --version                     Show the script version and exit
 
 Options for 'setup':
-  --cache=<DIR>                 Set the download cache directory
-  --cache <DIR>                 Equivalent to --cache=<DIR>
-  -r, --reinstall               Force reinstallation of the rootfs
-  -d, --directory-rootfs=<DIR>  Set the directory where the rootfs will be installed
-      --directory-rootfs <DIR>  Equivalent to --directory-rootfs=<DIR>
+  --cache=<DIR>                     Set the download cache directory
+  --cache <DIR>                     Equivalent to --cache=<DIR>
+  -r, --reinstall                   Force reinstallation of the rootfs
+  -d, --directory-rootfs=<DIR>      Set the directory where the rootfs will be installed
+      --directory-rootfs <DIR>      Equivalent to --directory-rootfs=<DIR>
 
 Options for 'config':
-  -u, --update                  Update and upgrade all packages in the rootfs
-  -s, --static-env              Configure environment for static binaries
-  -d, --directory-rootfs=<DIR>  Set the rootfs directory to be used
-      --directory-rootfs <DIR>  Equivalent to --directory-rootfs=<DIR>
+  -u, --update                      Update and upgrade all packages in the rootfs
+  -p, --prepare-dev                 Install essential development tools
+  -e, --extract-static=<CMD> [DIR]  Extract statically linked binaries from the rootfs
+      --extract-static <CMD> [DIR]  Equivalent to --extract-static=<CMD> [DIR]
+  -d, --directory-rootfs=<DIR>      Set the rootfs directory to be used
+      --directory-rootfs <DIR>      Equivalent to --directory-rootfs=<DIR>
 
 Options for 'run':
-  -0, --root                    Enables root mode in proot (uses -0)
-  -b, --proot-args=<ARGS>       Passe additional arguments to proot
-      --proot-args <ARGS>       Equivalent to --proot-args=<ARGS>
-  -d, --directory-rootfs=<DIR>  Set the rootfs directory to be used
-      --directory-rootfs <DIR>  Equivalent to --directory-rootfs=<DIR>
-  -c, --command=<CMD>           Command to execute inside the environment (single string)
-      --command <CMD>           Equivalent to --command=<CMD>
-  --                            All arguments after this are passed directly
-                                to the command executed inside proot
+  -0, --root                        Enables root mode in proot (uses -0)
+  -b, --proot-args=<ARGS>           Passe additional arguments to proot
+      --proot-args <ARGS>           Equivalent to --proot-args=<ARGS>
+  -d, --directory-rootfs=<DIR>      Set the rootfs directory to be used
+      --directory-rootfs <DIR>      Equivalent to --directory-rootfs=<DIR>
+  -c, --command=<CMD>               Command to execute inside the environment (single string)
+      --command <CMD>               Equivalent to --command=<CMD>
+  --                                All arguments after this are passed directly
+                                    to the command executed inside proot
 
 Environment variables:
-  ALPINEBOX_ROOTFS              Default rootfs directory if not passed with -d / --directory-rootfs
-                                Default to: \$HOME/.alpine-rootfs
+  ALPINEBOX_ROOTFS                  Default rootfs directory if not passed with -d/--directory-rootfs
+                                    Default to: \$HOME/.alpine-rootfs
 
-  ALPINEBOX_CACHE               Default cache directory for downloads if not passed with --cache
-                                Default to: \$HOME/.cache/alpine-rootfs
+  ALPINEBOX_CACHE                   Default cache directory for downloads if not passed with --cache
+                                    Default to: \$HOME/.cache/alpine-rootfs
+
+  ALPINEBOX_CMD                     Command to execute inside the container, alternative to -c/--command
 
 Examples:
   ${0##*/} setup --cache /tmp/cache -d ./rootfs
@@ -224,7 +240,7 @@ function _print_version
 {
 echo -e "\033[1A
 ┌─────────────────────────────────────────────────────────┐
-│                  AlpineBox Version 1.0                  │
+│                  AlpineBox Version $VR                  │
 └─────────────────────────────────────────────────────────┘
 
 AlpineBox is a simple shell-based tool that allows you to create and
@@ -234,6 +250,18 @@ License MIT: The MIT License <https://opensource.org/license/mit>"
 exit 0
 }
 
+
+function _check_essential_parms
+{
+    [[ "$1" == "" || (-z $ALLOW_DASH_ARGS && "$1" == -*) ]] && {
+        echo "${0##*/}: $2: $3 requires a <$4> as argument."
+        echo "Usage: ${0##*/} $2 $3 <$4>"
+        exit 1
+    }
+    return 0
+}
+
+
 set -e
 
 declare -x ARCH="${ARCH:-"$(uname -m)"}"
@@ -241,9 +269,12 @@ declare -x MIRROR="https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/
 
 declare -x ALPINEBOX_ROOTFS="${ALPINEBOX_ROOTFS:-"$HOME"/.alpine-rootfs}"
 declare -x ALPINEBOX_CACHE="${ALPINEBOX_CACHE:-"$HOME"/.cache/alpine-rootfs}"
+declare -x ALPINEBOX_CMD="${ALPINEBOX_CMD:-}"
 
 declare -x CMD=""
 declare -x PROOT_ARGS=""
+declare -x EXTRACT_BINARY=""
+declare -x EXTRACT_OUTPUT=""
 declare -i ALPINEBOX_REINSTALL=0
 declare -a PROGRAM_ARGS=()
 
@@ -288,22 +319,26 @@ test "$CMD" == "setup" && {
         case "$1" in
             --cache=*)
                 ALPINEBOX_CACHE="${1#*=}"
+                _check_essential_parms "$ALPINEBOX_CACHE" "setup" "$1" "directory"
                 shift
                 ;;
             --cache)
                 ALPINEBOX_CACHE="$2"
+                _check_essential_parms "$ALPINEBOX_CACHE" "setup" "$1" "directory"
                 shift 2
                 ;;
             -r|--reinstall)
                 ALPINEBOX_REINSTALL=1
                 shift
                 ;;
-            -d|--directory-rootfs=*)
+            --directory-rootfs=*)
                 ALPINEBOX_ROOTFS="${1#*=}"
+                _check_essential_parms "$ALPINEBOX_ROOTFS" "setup" "$1" "directory"
                 shift
                 ;;
             -d|--directory-rootfs)
                 ALPINEBOX_ROOTFS="$2"
+                _check_essential_parms "$ALPINEBOX_ROOTFS" "setup" "$1" "directory"
                 shift 2
                 ;;
             *)
@@ -328,26 +363,34 @@ test "$CMD" == "run" && {
                 ;;
             -b|--proot-args)
                 PROOT_ARGS="$2"
+                declare -x ALLOW_DASH_ARGS=1
+                _check_essential_parms "$PROOT_ARGS" "run" "$1" "proot parameter"
                 shift 2
                 ;;
             --proot-args=*)
                 PROOT_ARGS="${1#*=}"
+                declare -x ALLOW_DASH_ARGS=1
+                _check_essential_parms "$PROOT_ARGS" "run" "$1" "proot parameter"
                 shift
                 ;;
             -d|--directory-rootfs)
                 ALPINEBOX_ROOTFS="$2"
+                _check_essential_parms "$ALPINEBOX_ROOTFS" "run" "$1" "directory"
                 shift 2
                 ;;
             --directory-rootfs=*)
                 ALPINEBOX_ROOTFS="${1#*=}"
+                _check_essential_parms "$ALPINEBOX_ROOTFS" "run" "$1" "directory"
                 shift
                 ;;
             -c|--command)
                 PROGRAM_ARGS+=("$2")
+                _check_essential_parms "${PROGRAM_ARGS[0]}" "run" "$1" "command"
                 shift 2
                 ;;
             --command=*)
                 PROGRAM_ARGS+=("${1#*=}")
+                _check_essential_parms "${PROGRAM_ARGS[0]}" "run" "$1" "command"
                 shift
                 ;;
             --)
@@ -380,22 +423,61 @@ test "$CMD" == "config" && {
         exit 1
     }
 
+    declare -i n=0
+
+    for ((n = 0; n <= $#; n++)); do
+        arg="${!n}"
+        case "$arg" in
+            --directory-rootfs=*)
+                ALPINEBOX_ROOTFS="${arg#*=}"
+                _check_essential_parms "$ALPINEBOX_ROOTFS" "config" "$arg" "directory"
+                break
+                ;;
+            -d|--directory-rootfs)
+                n+=1
+                ALPINEBOX_ROOTFS="${!n}"
+                _check_essential_parms "$ALPINEBOX_ROOTFS" "config" "$arg" "directory"
+                break
+                ;;
+        esac
+    done
+
     while [[ "$#" -gt 0 ]]; do
         case "$1" in
             -u|--update)
+                PARM_OK=1
                 _update
                 break
                 ;;
-            -s|--static-env)
-                _static_env
+            -p|--prepare-dev)
+                PARM_OK=1
+                _prepare_dev
                 break
                 ;;
-            -d|--directory-rootfs=*)
-                ALPINEBOX_ROOTFS="${1#*=}"
+            -e|--extract-static)
+                PARM_OK=1
+                EXTRACT_BINARY="$2"
+
+                test -d "$3" && EXTRACT_OUTPUT="$3"
+
+                _check_essential_parms "$EXTRACT_BINARY" "config" "$1" "command"
+                _extract_static
+                break
+                ;;
+            --extract-static=*)
+                PARM_OK=1
+                EXTRACT_BINARY="${1#*=}"
+
+                test -d "$2" && EXTRACT_OUTPUT="$2"
+
+                _check_essential_parms "$EXTRACT_BINARY" "config" "$1" "command"
+                _extract_static
+                break
+                ;;
+            --directory-rootfs=*)  # pass
                 shift
                 ;;
-            -d|--directory-rootfs)
-                ALPINEBOX_ROOTFS="$2"
+            -d|--directory-rootfs)  # pass
                 shift 2
                 ;;
             *)
@@ -405,5 +487,12 @@ test "$CMD" == "config" && {
                 ;;
         esac
     done
+
+    test -z "$PARM_OK" && {
+        echo "${0##*/}: 'config' requires at least one of: <-u|--update> <-p|--prepare-dev> <-e|--extract-static>"
+        echo "Try '${0##*/} --help' for more information."
+        exit 1
+    }
+
     exit 0
 }
