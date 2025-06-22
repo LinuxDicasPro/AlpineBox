@@ -1,0 +1,13 @@
+#!/bin/sh
+
+case "$0" in
+  */*) DIR=${0%/*} ;;
+  *) DIR='.' ;;
+esac
+
+HERE=$(cd "$DIR" >/dev/null 2>&1 && pwd)
+
+export ALPINEBOX_APPIMAGE=1
+export ALPINEBOX_TOOLS="$HERE/tools"
+
+exec "$HERE/AlpineBox" "$@"
