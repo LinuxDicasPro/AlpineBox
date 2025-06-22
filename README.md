@@ -23,14 +23,12 @@ testing, and sandboxing — all **without requiring root access**.
 
 Make sure the following tools are available in your system:
 
-
-- `bash`
 - `coreutils (mkdir rm uname)`
+- `curl`
+- `find`
 - `grep`
-- `links`
 - `proot`
 - `tar`
-- `wget`
 
 You can check dependencies using:
 
@@ -49,6 +47,14 @@ $ git clone https://github.com/LinuxDicasPro/AlpineBox.git
 $ cd AlpineBox
 $ chmod +x ./AlpineBox
 $ sudo mv ./AlpineBox /usr/bin/AlpineBox
+```
+
+Or use AppImage:
+
+```bash
+$ wget https://github.com/LinuxDicasPro/AlpineBox/releases/download/Continuous/AlpineBox-1.3-x86_64.AppImage
+$ mv AlpineBox-1.3-x86_64.AppImage AlpineBox
+$ chmod +x ./AlpineBox
 ```
 
 Then run it using:
