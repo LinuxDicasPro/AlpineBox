@@ -21,7 +21,7 @@
 # Author: Mauricio Ferrari
 # License: MIT
 
-VR="1.3"
+VR="1.4"
 
 _msg_err_no_rootfs()
 {
@@ -52,7 +52,7 @@ _check_deps()
         exit 0
     }
 
-    for c in curl find grep gzip mkdir proot tar rm uname
+    for c in find grep gzip mkdir proot tar rm uname wget
     do
         command -v "$c" || echo "$c - not found"
     done
@@ -62,7 +62,7 @@ _check_deps()
 
 _check_version()
 {
-    "${E}"curl -s "$MIRROR" | "${E}"grep -Eom1 "alpine-minirootfs-([0-9]+[.])+[0-9]+" | "${E}"grep -Eom1 "([0-9]+[.])+[0-9]+"
+    "${E}"wget -qO- "$MIRROR" | "${E}"grep -Eom1 "alpine-minirootfs-([0-9]+[.])+[0-9]+" | "${E}"grep -Eom1 "([0-9]+[.])+[0-9]+"
 }
 
 
@@ -134,10 +134,7 @@ _setup()
     test -f "$ALPINEBOX_CACHE/$TARBALL" || {
         "${E}"rm -rf "$ALPINEBOX_CACHE"
         "${E}"mkdir -p "$ALPINEBOX_CACHE"
-
-        cd "$ALPINEBOX_CACHE"
-        "${E}"curl -L -O "$MIRROR/$TARBALL"
-        cd -
+        "${E}"wget -c -O "$ALPINEBOX_CACHE/$TARBALL" "$MIRROR/$TARBALL"
     }
     echo "$ALPINEBOX_CACHE/$TARBALL"
 

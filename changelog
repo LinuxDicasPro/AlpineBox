@@ -1,3 +1,7 @@
+Mon Jun 23 13:04:18 -03 2025:
+    - remove curl dependency, use wget to busybox compatibility
+    - change readme and appimage icon
+    - add project logo
 Sun Jun 22 14:36:48 -03 2025:
     - update version
     - updated to posix

@@ -1,13 +1,13 @@
 #!/bin/sh
 
 case "$0" in
-  */*) DIR=${0%/*} ;;
-  *) DIR='.' ;;
+  */*) DR=${0%/*} ;;
+  *) DR='.' ;;
 esac
 
-HERE=$(cd "$DIR" >/dev/null 2>&1 && pwd)
+HR=$(cd "$DR" >/dev/null 2>&1 && pwd)
 
 export ALPINEBOX_APPIMAGE=1
-export ALPINEBOX_TOOLS="$HERE/tools"
+export ALPINEBOX_TOOLS="$HR/tools"
 
-exec "$HERE/AlpineBox" "$@"
+exec "$HR/AlpineBox" "$@"

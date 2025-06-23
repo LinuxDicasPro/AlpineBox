@@ -1,4 +1,8 @@
-# 🌄️ AlpineBox
+<p align="center">
+  <img src="logo.png" alt="AlpineBox" width="320"/>
+</p>
+
+<h1 align="center"><strong>AlpineBox - Alpine Linux SandBox</strong></h1>
 
 **AlpineBox** is a simple and portable shell-based tool that allows you to create
 and manage Alpine Linux **rootfs containers** using
@@ -23,12 +27,18 @@ testing, and sandboxing — all **without requiring root access**.
 
 Make sure the following tools are available in your system:
 
+### GLibC:
+- `bash` or other shells - **100% posix**
 - `coreutils (mkdir rm uname)`
-- `curl`
 - `find`
 - `grep`
 - `proot`
 - `tar`
+- `wget`
+
+### Musl LibC:
+- `busybox`
+- `proot`
 
 You can check dependencies using:
 
