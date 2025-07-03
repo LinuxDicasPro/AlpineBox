@@ -114,8 +114,8 @@ $ AlpineBox <command> [options] [--] [ARGS...]
 ╔════════════════════════╗
 ║ Options for "aports":  ║
 ╠════════════════════════╩═════════╦═══════════════════════
-║ -s, --search <PKG>               ║ Search for a package in the Alpine aports
-║ -g, --get <PKG>                  ║ Download the APKBUILD in the Alpine aports
+║ -s, --search=<PKG>               ║ Search for a package in the Alpine aports
+║ -g, --get=<PKG>                  ║ Download the APKBUILD in the Alpine aports
 ╚══════════════════════════════════╩═══════════════════════
 ╔════════════════════════╗
 ║ Options for "run":     ║
