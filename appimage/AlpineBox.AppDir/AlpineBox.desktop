@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=AlpineBox
+Comment=SandBox
+Exec=AlpineBox
+Icon=AlpineBox
+Categories=Utility;
+Terminal=true
+StartupNotify=true

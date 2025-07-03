@@ -1,0 +1,13 @@
+#!/bin/sh
+
+case "$0" in
+  */*) DR="${0%/*}" ;;
+  *) DR='.' ;;
+esac
+
+HR=$(cd "$DR" && pwd)
+
+export IS_APPIMAGE=1
+export ALPINEBOX_TOOLS="$HR/tools"
+
+exec "$HR/AlpineBox" "$@"

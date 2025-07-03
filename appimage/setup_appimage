@@ -1,0 +1,11 @@
+#!/bin/bash
+
+mkdir -p output
+
+VER="$(grep -Eom1 VR=\"[0-9].[0-9] ../AlpineBox)"
+
+cp -vf ../AlpineBox ./AlpineBox.AppDir/AlpineBox
+test -f ./output/appimagetool || wget -q --show-progress -O ./output/appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+
+chmod +x ./output/appimagetool
+ARCH=x86_64 ./output/appimagetool --comp zstd --mksquashfs-opt -Xcompression-level --mksquashfs-opt 22 AlpineBox.AppDir ./output/AlpineBox-"${VER#*\"}"-x86_64.AppImage

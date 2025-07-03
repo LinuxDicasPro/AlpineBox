@@ -1,0 +1,37 @@
+Wed Jul 02 20:54:13 -03 2025:
+    - update version
+    - changed readme
+    - fixed error output file in read only directory
+    - project changes for create AppImage
+    - using latest_stable repositories for default
+    - added ALPINEBOX_APPDIR env var
+    - added aports option for download APKBUILDs
+    - refactory run function - auto bind system host cursors, themes and fonts
+    - added -i/--ignore-extra-binds for no bind cursors, themes end fonts
+    - fix -c/--command parameter in run
+    - auto install alpine-sdk in setup function
+    - added -n/--no-sdk in setup
+    - added --remove-rootfs parameter in setup
+    - added --edge parameter for use edge repository
+    - added --appdir parameter for appimage
+    - renamed option config to tools
+    - removed -p/--prepare-dev options in tools, integrated to setup
+    - fix bugs in _extract_static function
+    - added -a/--apkbuild for build packages in tools
+Mon Jun 23 13:04:18 -03 2025:
+    - removed curl dependency, use wget to busybox compatibility
+    - changed readme and appimage icon
+    - added project logo
+Sun Jun 22 14:36:48 -03 2025:
+    - update version
+    - updated to posix
+    - removed links and wget commands, use curl
+    - changed to posix
+    - add .gitignore
+Fri Jun 20 12:29:42 -03 2025:
+    - update version
+    - changed readme
+    - added news parameters
+    - fix parameters
+Thu Jun 19 13:26:43 -03 2025:
+    - upload first files
