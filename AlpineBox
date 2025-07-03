@@ -89,7 +89,7 @@ _run()
     ALPINEBOX_CMD="${ALPINEBOX_CMD:-$PROGRAM_ARGS}"
 
     # shellcheck disable=SC2086
-    proot ${USE_ROOT:+-0} $PROOT_OPTIONS /bin/sh ${ALPINEBOX_CMD:+-c "$ALPINEBOX_CMD"}
+    proot ${USE_ROOT:+-0} $PROOT_OPTIONS /usr/bin/env PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/libexec" /bin/sh ${ALPINEBOX_CMD:+-c "$ALPINEBOX_CMD"}
 }
 
 
