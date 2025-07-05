@@ -8,6 +8,6 @@ esac
 HR=$(cd "$DR" && pwd)
 
 export IS_APPIMAGE=1
-export ALPINEBOX_TOOLS="$HR/tools"
+export PATH="$HR/tools"
 
 exec "$HR/AlpineBox" "$@"

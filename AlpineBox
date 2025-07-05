@@ -11,7 +11,7 @@
 # Author: Mauricio Ferrari
 # License: MIT
 
-VR="1.6"
+vr="1.7"
 
 _msg_err_no_rootfs()
 {
@@ -70,26 +70,26 @@ _run()
     #  * /var/run/dbus/system_bus_socket
     #  * $HOME
 
-    PROOT_OPTIONS="-R $ALPINEBOX_ROOTFS --bind=/media --bind=/mnt $PROOT_ARGS"
+    proot_options="-R $ALPINEBOX_ROOTFS --bind=/media --bind=/mnt $proot_args"
 
-    test "${IGNORE_EXTRA_BINDS:-0}" -eq 1 || {
-        test -e "/etc/asound.conf" && PROOT_OPTIONS="$PROOT_OPTIONS --bind=/etc/asound.conf"
-        test -e "/etc/fonts" && PROOT_OPTIONS="$PROOT_OPTIONS --bind=/etc/fonts"
-        test -e "/usr/share/font-config" && PROOT_OPTIONS="$PROOT_OPTIONS --bind=/usr/share/font-config"
-        test -e "/usr/share/fontconfig" && PROOT_OPTIONS="$PROOT_OPTIONS --bind=/usr/share/fontconfig"
-        test -e "/usr/share/fonts" && PROOT_OPTIONS="$PROOT_OPTIONS --bind=/usr/share/fonts"
-        test -e "/usr/share/themes" && PROOT_OPTIONS="$PROOT_OPTIONS --bind=/usr/share/themes"
+    test "${no_extra_binds:-0}" -eq 1 || {
+        test -e "/etc/asound.conf" && proot_options="$proot_options --bind=/etc/asound.conf"
+        test -e "/etc/fonts" && proot_options="$proot_options --bind=/etc/fonts"
+        test -e "/usr/share/font-config" && proot_options="$proot_options --bind=/usr/share/font-config"
+        test -e "/usr/share/fontconfig" && proot_options="$proot_options --bind=/usr/share/fontconfig"
+        test -e "/usr/share/fonts" && proot_options="$proot_options --bind=/usr/share/fonts"
+        test -e "/usr/share/themes" && proot_options="$proot_options --bind=/usr/share/themes"
 
         for dir in $(find /usr/share/icons -type d -name 'cursors'); do
-            PROOT_OPTIONS="$PROOT_OPTIONS --bind=$dir"
+            proot_options="$proot_options --bind=$dir"
         done
     }
 
-    ALPINEBOX_CMD="${INTERNAL_ALPINEBOX_CMD:-$ALPINEBOX_CMD}"  # prevent future bugs
-    ALPINEBOX_CMD="${ALPINEBOX_CMD:-$PROGRAM_ARGS}"
+    ALPINEBOX_CMD="${internal_cmd:-$ALPINEBOX_CMD}"  # prevent future bugs
+    ALPINEBOX_CMD="${ALPINEBOX_CMD:-$cmd_args}"
 
     # shellcheck disable=SC2086
-    proot ${USE_ROOT:+-0} $PROOT_OPTIONS /usr/bin/env PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/libexec" /bin/sh ${ALPINEBOX_CMD:+-c "$ALPINEBOX_CMD"}
+    proot ${use_root:+-0} $proot_options /usr/bin/env PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/libexec" /bin/sh ${ALPINEBOX_CMD:+-c "$ALPINEBOX_CMD"}
 }
 
 
@@ -97,9 +97,9 @@ _update()
 {
     _msg_err_no_rootfs
 
-    USE_ROOT=1
-    IGNORE_EXTRA_BINDS=1
-    INTERNAL_ALPINEBOX_CMD="apk update && apk upgrade"
+    use_root=1
+    no_extra_binds=1
+    internal_cmd="apk update && apk upgrade"
     _run
 }
 
@@ -108,66 +108,66 @@ _extract_static()
 {
     _msg_err_no_rootfs
 
-    USE_ROOT=1
-    IGNORE_EXTRA_BINDS=1
-    INTERNAL_ALPINEBOX_CMD="
-        command -v $EXTRACT_BINARY.static || {
-            pkgs=\"\$(apk search $EXTRACT_BINARY.static | grep -Eo \".*-static\")\"
+    use_root=1
+    no_extra_binds=1
+    internal_cmd="
+        command -v $extract_cmd.static || {
+            pkgs=\"\$(apk search $extract_cmd.static | grep -Eo \".*-static\")\"
             test -z \"\$pkgs\" || apk add \$pkgs
             true
         }
     "
     _run
 
-    find "$ALPINEBOX_ROOTFS"/usr/bin -name "$EXTRACT_BINARY.static" -exec cp {} "${EXTRACT_OUTPUT:-$DEFAULT_OUTPUT_DIR}" \;
-    find "$ALPINEBOX_ROOTFS"/bin -name "$EXTRACT_BINARY.static" -exec cp {} "${EXTRACT_OUTPUT:-$DEFAULT_OUTPUT_DIR}" \;
+    find "$ALPINEBOX_ROOTFS"/usr/bin -name "$extract_cmd.static" -exec cp {} "${extract_output:-$def_output_dir}" \;
+    find "$ALPINEBOX_ROOTFS"/bin -name "$extract_cmd.static" -exec cp {} "${extract_output:-$def_output_dir}" \;
 
-    echo "$EXTRACT_BINARY.static saved in ${EXTRACT_OUTPUT:-$DEFAULT_OUTPUT_DIR}"
+    echo "$extract_cmd.static saved in ${extract_output:-$def_output_dir}"
 }
 
 
 _setup()
 {
-    test "${ALPINEBOX_REINSTALL:-0}" -eq 1 || {
+    test "${reinstall_rootfs:-0}" -eq 1 || {
         test -d "$ALPINEBOX_ROOTFS" && {
             echo "Rootfs directory $ALPINEBOX_ROOTFS is already available. Use [-r|--reinstall] to reinstall it."
             exit 0
         }
     }
 
-    VERSION="${VERSION:-"$(wget -qO- "$MIRROR" | grep -Eom1 "alpine-minirootfs-([0-9]+[.])+[0-9]+" | grep -Eom1 "([0-9]+[.])+[0-9]+")"}"
-    echo "Latest version $VERSION"
+    ALPINEBOX_ROOTFS_VERSION="${ALPINEBOX_ROOTFS_VERSION:-"$(wget -qO- "$mirror" | grep -Eom1 "alpine-minirootfs-([0-9]+[.])+[0-9]+" | grep -Eom1 "([0-9]+[.])+[0-9]+")"}"
+    echo "Alpine rootfs version $ALPINEBOX_ROOTFS_VERSION"
 
-    TARBALL="alpine-minirootfs-$VERSION-$ARCH.tar.gz"
+    tarball="alpine-minirootfs-$ALPINEBOX_ROOTFS_VERSION-$ALPINEBOX_ARCH.tar.gz"
 
-    test -f "$ALPINEBOX_CACHE/$TARBALL" || {
+    test -f "$ALPINEBOX_CACHE/$tarball" || {
         rm -rf "$ALPINEBOX_CACHE"
         mkdir -p "$ALPINEBOX_CACHE"
-        wget -c -O "$ALPINEBOX_CACHE/$TARBALL" "${MIRROR}$TARBALL"
+        wget -c -O "$ALPINEBOX_CACHE/$tarball" "${mirror}$tarball"
     }
-    echo "$ALPINEBOX_CACHE/$TARBALL"
+    echo "$ALPINEBOX_CACHE/$tarball"
 
     rm -rf "$ALPINEBOX_ROOTFS"
     mkdir -p "$ALPINEBOX_ROOTFS"
-    tar -xzvf "$ALPINEBOX_CACHE/$TARBALL" -C "$ALPINEBOX_ROOTFS"
+    tar -xzvf "$ALPINEBOX_CACHE/$tarball" -C "$ALPINEBOX_ROOTFS"
 
-    test "$USING_REPO" = "edge" && echo \
+    test "$using_repo" = "edge" && echo \
 "http://dl-cdn.alpinelinux.org/alpine/edge/main
 http://dl-cdn.alpinelinux.org/alpine/edge/community
 http://dl-cdn.alpinelinux.org/alpine/edge/testing
 " > "$ALPINEBOX_ROOTFS/etc/apk/repositories"
 
-    test "$USING_REPO" = "latest-stable" && echo \
+    test "$using_repo" = "latest-stable" && echo \
 "http://dl-cdn.alpinelinux.org/alpine/latest-stable/main
 http://dl-cdn.alpinelinux.org/alpine/latest-stable/community
 " > "$ALPINEBOX_ROOTFS/etc/apk/repositories"
 
     _update
 
-    test "${NO_ALPINE_SDK:-0}" -eq 1 || {
-        USE_ROOT=1
-        IGNORE_EXTRA_BINDS=1
-        INTERNAL_ALPINEBOX_CMD='apk add alpine-sdk'
+    test "${no_sdk:-0}" -eq 1 || {
+        use_root=1
+        no_extra_binds=1
+        internal_cmd='apk add alpine-sdk'
         _run
     }
 
@@ -185,14 +185,14 @@ echo \
 
 _create_appdir()
 {
-    ALPINEBOX_ROOTFS="$ALPINEBOX_APPDIR/$PKGNAME_APPDIR.AppDir"
-    NO_ALPINE_SDK=1
-    ALPINEBOX_REINSTALL=1
+    ALPINEBOX_ROOTFS="$ALPINEBOX_SAVE_APPDIR/$pkg_name.AppDir"
+    no_sdk=1
+    reinstall_rootfs=1
     _setup
 
-    USE_ROOT=1
-    IGNORE_EXTRA_BINDS=1
-    INTERNAL_ALPINEBOX_CMD="apk add $PKGNAME_APPDIR"
+    use_root=1
+    no_extra_binds=1
+    internal_cmd="apk add $pkg_name"
     _run
     exit 0
 }
@@ -200,8 +200,8 @@ _create_appdir()
 
 _remove_rootfs()
 {
-    rm -rf "$REMOVE_ROOTFS"
-    echo "The rootfs <$REMOVE_ROOTFS> has been successfully removed."
+    rm -rf "$remove_rootfs"
+    echo "The rootfs <$remove_rootfs> has been successfully removed."
     exit 0
 }
 
@@ -215,14 +215,12 @@ _extract_deps() {
         case "$line" in
             "$var="*)
                 in_block=1
-                # Remove prefix var="
                 line=${line#*=}
                 line=${line#\"}
                 ;;
         esac
 
         if [ "$in_block" -eq 1 ]; then
-            # Remove eventual aspas finais
             case "$line" in
                 *\" )
                     in_block=0
@@ -240,39 +238,39 @@ _extract_deps() {
 _apk_build()
 {
     _msg_err_no_rootfs
-    test -z "$APKBUILD_FILE_DIR" && APKBUILD_FILE_DIR="APKBUILD"
+    test -z "$apkbuild_local" && apkbuild_local="APKBUILD"
 
-    test -e "$APKBUILD_FILE_DIR" || {
+    test -e "$apkbuild_local" || {
         echo "No APKBUILD file found in the specified or current path."
         exit 1
     }
 
-    test -d "$APKBUILD_FILE_DIR" && {
-        APKBUILD_FILE="${APKBUILD_FILE_DIR%/}/APKBUILD"
-        APKBUILD_NAME="$(grep -E "^pkgname" "$APKBUILD_FILE")"
-        APKBUILD_NAME="${APKBUILD_NAME#*=}"
+    test -d "$apkbuild_local" && {
+        apkbuild_file="${apkbuild_local%/}/APKBUILD"
+        apkbuild_name="$(grep -E "^pkgname" "$apkbuild_file")"
+        apkbuild_name="${apkbuild_name#*=}"
         mkdir -pv "$ALPINEBOX_ROOTFS/build"
-        cp -av "$APKBUILD_FILE_DIR" "$ALPINEBOX_ROOTFS/build"
+        cp -av "$apkbuild_local" "$ALPINEBOX_ROOTFS/build"
     }
 
-    test -f "$APKBUILD_FILE_DIR" && {
-        APKBUILD_FILE=$APKBUILD_FILE_DIR
-        APKBUILD_NAME="$(grep -E "^pkgname" "$APKBUILD_FILE")"
-        APKBUILD_NAME="${APKBUILD_NAME#*=}"
-        mkdir -pv "$ALPINEBOX_ROOTFS/build/$APKBUILD_NAME"
-        cp -av "$APKBUILD_FILE" "$ALPINEBOX_ROOTFS/build/$APKBUILD_NAME/APKBUILD"
+    test -f "$apkbuild_local" && {
+        apkbuild_file=$apkbuild_local
+        apkbuild_name="$(grep -E "^pkgname" "$apkbuild_file")"
+        apkbuild_name="${apkbuild_name#*=}"
+        mkdir -pv "$ALPINEBOX_ROOTFS/build/$apkbuild_name"
+        cp -av "$apkbuild_file" "$ALPINEBOX_ROOTFS/build/$apkbuild_name/APKBUILD"
     }
 
-    DEPENDS=$(_extract_deps depends "$APKBUILD_FILE")
-    MAKEDEPENDS=$(_extract_deps makedepends "$APKBUILD_FILE")
-    CHECKDEPENDS=$(_extract_deps checkdepends "$APKBUILD_FILE")
-    echo "depends: $DEPENDS"
-    echo "makedepends: $MAKEDEPENDS"
-    echo "checkdepends: $CHECKDEPENDS"
-    EXTRACT_DEPS="$DEPENDS $MAKEDEPENDS $CHECKDEPENDS"
+    deps=$(_extract_deps depends "$apkbuild_file")
+    make_deps=$(_extract_deps makedepends "$apkbuild_file")
+    check_deps=$(_extract_deps checkdepends "$apkbuild_file")
+    echo "depends: $deps"
+    echo "makedepends: $make_deps"
+    echo "checkdepends: $check_deps"
+    extract_deps="$deps $make_deps $check_deps"
 
     _update
-    INTERNAL_ALPINEBOX_CMD="
+    internal_cmd="
         which abuild > /dev/null || apk add alpine-sdk
         HOME=/build
         test -f /etc/apk/keys/$USER*.rsa.pub && exit
@@ -282,14 +280,14 @@ _apk_build()
     "
     _run
 
-    USE_ROOT=1
-    IGNORE_EXTRA_BINDS=1
-    INTERNAL_ALPINEBOX_CMD="
-        apk add $EXTRACT_DEPS
+    use_root=1
+    no_extra_binds=1
+    internal_cmd="
+        apk add $extract_deps
         HOME=/build
-        cd /build/$APKBUILD_NAME
+        cd /build/$apkbuild_name
         abuild -r -F -d
-        find \"/build/packages/build/$ARCH\" -name \"$APKBUILD_NAME\"*.apk -exec apk add --allow-untrusted {} \;
+        find \"/build/packages/build/$ALPINEBOX_ARCH\" -name \"$apkbuild_name\"*.apk -exec apk add --allow-untrusted {} \;
     "
     _run
 }
@@ -297,7 +295,7 @@ _apk_build()
 
 _aports_update()
 {
-    INTERNAL_ALPINEBOX_CMD="
+    internal_cmd="
         which git > /dev/null || apk add git
         cd /build
         git clone --depth=1 --filter=tree:0 --no-checkout https://github.com/alpinelinux/aports.git 2> /dev/null || true
@@ -315,32 +313,32 @@ _aports()
     mkdir -pv "$ALPINEBOX_ROOTFS/build"
 
     _aports_update
-    APORTS_RES="$(grep "/$APORTS_PKG/" "$ALPINEBOX_ROOTFS/build/aports-database" || true)"
+    result="$(grep "/$APORTS_PKG/" "$ALPINEBOX_ROOTFS/build/aports-database" || true)"
 
-    test "${APORTS_SEARCH:-0}" -eq 1 && {
+    test "${aports_search:-0}" -eq 1 && {
         echo "════════════════════════════════════════════════════════════"
         echo "╔═════════╗"
         echo "║ RESULT: ║"
         echo "╚═════════╝"
-        echo "$APORTS_RES"
+        echo "$result"
         echo "════════════════════════════════════════════════════════════"
         return 0
     }
 
-    APKBUILD_TMP="$(echo "$APORTS_RES" | grep "APKBUILD")"
-    APKBUILD_DIR="${APKBUILD_TMP%/*}"
+    apkbuild_dir="$(echo "$result" | grep "APKBUILD")"
+    apkbuild_dir="${apkbuild_dir%/*}"
 
-    test "${APORTS_GET:-0}" -eq 1 && {
-        INTERNAL_ALPINEBOX_CMD="
+    test "${aports_get:-0}" -eq 1 && {
+        internal_cmd="
             cd /build/aports
             git sparse-checkout init --cone
-            git sparse-checkout set $APKBUILD_DIR
+            git sparse-checkout set $apkbuild_dir
             git checkout
         "
         _run
 
-        cp -nav "$ALPINEBOX_ROOTFS/build/aports/$APKBUILD_DIR" "${EXTRACT_OUTPUT:-$DEFAULT_OUTPUT_DIR}"
-        echo "$APKBUILD_DIR saved in ${EXTRACT_OUTPUT:-$DEFAULT_OUTPUT_DIR}"
+        cp -nav "$ALPINEBOX_ROOTFS/build/aports/$apkbuild_dir" "${extract_output:-$def_output_dir}"
+        echo "$apkbuild_dir saved in ${extract_output:-$def_output_dir}"
     }
 }
 
@@ -348,7 +346,7 @@ _aports()
 _print_help()
 {
 echo "╔══════════════════════════════════════════════════════════╗"
-echo "║                  AlpineBox Version $VR                   ║"
+echo "║                  AlpineBox Version $vr                   ║"
 echo "╠══════════════════════════════════════════════════════════╣"
 echo "║                                                          ║"
 echo "║ AlpineBox is a simple shell-based tool that allows you   ║"
@@ -415,7 +413,7 @@ echo '
 ║                                  ║ Default to: $HOME/.alpine-rootfs
 ║ ALPINEBOX_CACHE                  ║ Default cache directory for downloads, alternative --cache
 ║                                  ║ Default to: $HOME/.cache/alpine-rootfs
-║ ALPINEBOX_APPDIR                 ║ Output directory for generated AppDirs
+║ ALPINEBOX_SAVE_APPDIR            ║ Output directory for generated AppDirs
 ║                                  ║ Default: current directory
 ║ ALPINEBOX_CMD                    ║ Command to execute in the container, alternative -c/--command
 ╚══════════════════════════════════╩═══════════════════════
@@ -433,7 +431,7 @@ exit 0
 _print_version()
 {
 echo "╔══════════════════════════════════════════════════════════╗"
-echo "║                  AlpineBox Version $VR                   ║"
+echo "║                  AlpineBox Version $vr                   ║"
 echo "╠══════════════════════════════════════════════════════════╣"
 echo "║                                                          ║"
 echo "║ AlpineBox is a simple shell-based tool that allows you   ║"
@@ -449,7 +447,7 @@ exit 0
 
 _check_essential_parms()
 {
-    if [ "$1" = "" ] || { [ -z "$ALLOW_DASH_ARGS" ] && case "$1" in -*) true ;; *) false ;; esac; }; then
+    if [ "$1" = "" ] || { [ -z "$allow_dash_args" ] && case "$1" in -*) true ;; *) false ;; esac; }; then
         echo "${0##*/}: $2: $3 requires a <$4> as argument."
         echo "Usage: ${0##*/} $2 $3 <$4>"
         exit 1
@@ -460,40 +458,39 @@ _check_essential_parms()
 
 set -e
 
-CWD="$(pwd)"
-DEFAULT_OUTPUT_DIR="$CWD"
+cwd="$(pwd)"
+def_output_dir="$cwd"
 
-test -w "$CWD" || DEFAULT_OUTPUT_DIR="$HOME"
-test -z "$ALPINEBOX_TOOLS" || export PATH="$ALPINEBOX_TOOLS"
+test -w "$cwd" || def_output_dir="$HOME"
 
-ALPINEBOX_APPDIR="${ALPINEBOX_APPDIR:-"$DEFAULT_OUTPUT_DIR"}"
+ALPINEBOX_ARCH="${ALPINEBOX_ARCH:-"$(uname -m)"}"
+ALPINEBOX_SAVE_APPDIR="${ALPINEBOX_SAVE_APPDIR:-"$def_output_dir"}"
 ALPINEBOX_ROOTFS="${ALPINEBOX_ROOTFS:-"$HOME"/.alpine-rootfs}"
 ALPINEBOX_CACHE="${ALPINEBOX_CACHE:-"$HOME"/.cache/alpine-rootfs}"
 ALPINEBOX_CMD="${ALPINEBOX_CMD:-}"
 
-ARCH="${ARCH:-"$(uname -m)"}"
-MIRROR="https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/$ARCH/"
-USING_REPO="latest-stable"
+mirror="https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/$ALPINEBOX_ARCH/"
+using_repo="latest-stable"
 
 for arg in "$@"; do
     case "$arg" in
         tools)
-            CMD="tools"
+            cmd="tools"
             shift
             break
             ;;
         setup)
-            CMD="setup"
+            cmd="setup"
             shift
             break
             ;;
         run)
-            CMD="run"
+            cmd="run"
             shift
             break
             ;;
          aports)
-            CMD="aports"
+            cmd="aports"
             shift
             break
             ;;
@@ -514,9 +511,9 @@ for arg in "$@"; do
     esac
 done
 
-test -z "$CMD" && CMD="run"
+test -z "$cmd" && cmd="run"
 
-test "$CMD" = "setup" && {
+test "$cmd" = "setup" && {
     while [ "$#" -gt 0 ]; do
         case "$1" in
             --cache=*)
@@ -531,14 +528,14 @@ test "$CMD" = "setup" && {
                 ;;
             -n|--no-sdk)
                 shift
-                NO_ALPINE_SDK=1
+                no_sdk=1
                 ;;
             --edge)
                 shift
-                USING_REPO="edge"
+                using_repo="edge"
                 ;;
             -r|--reinstall)
-                ALPINEBOX_REINSTALL=1
+                reinstall_rootfs=1
                 shift
                 ;;
             --directory-rootfs=*)
@@ -552,23 +549,23 @@ test "$CMD" = "setup" && {
                 shift 2
                 ;;
             --remove-rootfs=*)
-                REMOVE_ROOTFS="${1#*=}"
-                _check_essential_parms "$REMOVE_ROOTFS" "setup" "$1" "directory"
+                remove_rootfs="${1#*=}"
+                _check_essential_parms "$remove_rootfs" "setup" "$1" "directory"
                 _remove_rootfs
                 ;;
             --remove-rootfs)
-                REMOVE_ROOTFS="$2"
-                _check_essential_parms "$REMOVE_ROOTFS" "setup" "$1" "directory"
+                remove_rootfs="$2"
+                _check_essential_parms "$remove_rootfs" "setup" "$1" "directory"
                 _remove_rootfs
                 ;;
             --appdir=*)
-                PKGNAME_APPDIR="${1#*=}"
-                _check_essential_parms "$PKGNAME_APPDIR" "setup" "$1" "package"
+                pkg_name="${1#*=}"
+                _check_essential_parms "$pkg_name" "setup" "$1" "package"
                 _create_appdir
                 ;;
             --appdir)
-                PKGNAME_APPDIR="$2"
-                _check_essential_parms "$PKGNAME_APPDIR" "setup" "$1" "package"
+                pkg_name="$2"
+                _check_essential_parms "$pkg_name" "setup" "$1" "package"
                 _create_appdir
                 ;;
             *)
@@ -584,27 +581,27 @@ test "$CMD" = "setup" && {
 }
 
 
-test "$CMD" = "run" && {
+test "$cmd" = "run" && {
     while [ "$#" -gt 0 ]; do
         case "$1" in
              -0|--root)
-                USE_ROOT=1
+                use_root=1
                 shift
                 ;;
             -i|--ignore-extra-binds)
-                IGNORE_EXTRA_BINDS=1
+                no_extra_binds=1
                 shift
                 ;;
             -b|--proot-args)
-                PROOT_ARGS="$2"
-                ALLOW_DASH_ARGS=1
-                _check_essential_parms "$PROOT_ARGS" "run" "$1" "proot parameter"
+                proot_args="$2"
+                allow_dash_args=1
+                _check_essential_parms "$proot_args" "run" "$1" "proot parameter"
                 shift 2
                 ;;
             --proot-args=*)
-                PROOT_ARGS="${1#*=}"
-                ALLOW_DASH_ARGS=1
-                _check_essential_parms "$PROOT_ARGS" "run" "$1" "proot parameter"
+                proot_args="${1#*=}"
+                allow_dash_args=1
+                _check_essential_parms "$proot_args" "run" "$1" "proot parameter"
                 shift
                 ;;
             -d|--directory-rootfs)
@@ -618,12 +615,12 @@ test "$CMD" = "run" && {
                 shift
                 ;;
             -c|--command)
-                PROGRAM_ARGS="$2"
+                cmd_args="$2"
                 _check_essential_parms "$2" "run" "$1" "command"
                 shift 2
                 ;;
             --command=*)
-                PROGRAM_ARGS="${1#*=}"
+                cmd_args="${1#*=}"
                 _check_essential_parms "${1#*=}" "run" "$1" "command"
                 shift
                 ;;
@@ -642,13 +639,13 @@ test "$CMD" = "run" && {
         esac
     done
 
-    PROGRAM_ARGS="${PROGRAM_ARGS:+$PROGRAM_ARGS }$*"
+    cmd_args="${cmd_args:+$cmd_args }$*"
     _run
     exit 0
 }
 
 
-test "$CMD" = "tools" && {
+test "$cmd" = "tools" && {
 
     test "$#" -eq 0 && {
         echo "${0##*/}: tools: No options provided for 'tools'."
@@ -678,39 +675,39 @@ test "$CMD" = "tools" && {
     while [ "$#" -gt 0 ]; do
         case "$1" in
             -u|--update)
-                PARM_OK=1
+                parm_ok=1
                 _update
                 break
                 ;;
             -e|--extract-static)
-                PARM_OK=1
-                EXTRACT_BINARY="$2"
+                parm_ok=1
+                extract_cmd="$2"
 
-                test -d "$3" && EXTRACT_OUTPUT="$3"
+                test -d "$3" && extract_output="$3"
 
-                _check_essential_parms "$EXTRACT_BINARY" "tools" "$1" "command"
+                _check_essential_parms "$extract_cmd" "tools" "$1" "command"
                 _extract_static
                 break
                 ;;
             --extract-static=*)
-                PARM_OK=1
-                EXTRACT_BINARY="${1#*=}"
+                parm_ok=1
+                extract_cmd="${1#*=}"
 
-                test -d "$2" && EXTRACT_OUTPUT="$2"
+                test -d "$2" && extract_output="$2"
 
-                _check_essential_parms "$EXTRACT_BINARY" "tools" "$1" "command"
+                _check_essential_parms "$extract_cmd" "tools" "$1" "command"
                 _extract_static
                 break
                 ;;
             -a|--apkbuild)
-                PARM_OK=1
-                APKBUILD_FILE_DIR="$2"
+                parm_ok=1
+                apkbuild_local="$2"
                 _apk_build
                 break
                 ;;
             --apkbuild=*)
-                PARM_OK=1
-                APKBUILD_FILE_DIR="${1#*=}"
+                parm_ok=1
+                apkbuild_local="${1#*=}"
                 _apk_build
                 break
                 ;;
@@ -728,7 +725,7 @@ test "$CMD" = "tools" && {
         esac
     done
 
-    test -z "$PARM_OK" && {
+    test -z "$parm_ok" && {
         echo "${0##*/}: 'tools' requires at least one of:
     <-u|--update>
     <-a|--apkbuild>
@@ -740,7 +737,7 @@ test "$CMD" = "tools" && {
     exit 0
 }
 
-test "$CMD" = "aports" && {
+test "$cmd" = "aports" && {
 
     test "$#" -eq 0 && {
         echo "${0##*/}: aports: No options provided for 'aports'."
@@ -751,25 +748,25 @@ test "$CMD" = "aports" && {
     while [ "$#" -gt 0 ]; do
         case "$1" in
             -s|--search)
-                APORTS_SEARCH=1
+                aports_search=1
                 APORTS_PKG="$2"
                 _check_essential_parms "$APORTS_PKG" "aports" "$1" "package"
                 shift 2
                 ;;
             --search=*)
-                APORTS_SEARCH=1
+                aports_search=1
                 APORTS_PKG="${1#*=}"
                 _check_essential_parms "$APORTS_PKG" "aports" "$1" "package"
                 shift
                 ;;
             -g|--get)
-                APORTS_GET=1
+                aports_get=1
                 APORTS_PKG="$2"
                 _check_essential_parms "$APORTS_PKG" "aports" "$1" "package"
                 shift 2
                 ;;
             --get=*)
-                APORTS_GET=1
+                aports_get=1
                 APORTS_PKG="${1#*=}"
                 _check_essential_parms "$APORTS_PKG" "aports" "$1" "package"
                 shift
